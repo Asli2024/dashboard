@@ -1,3 +1,91 @@
+
+# Find RDS instances by tag
+data "aws_resourcegroupstaggingapi_resources" "prod_rds" {
+  resource_type_filters = ["rds:db"]
+
+  tag_filter {
+    key    = "environment"
+    values = ["prod"]
+  }
+}
+
+locals {
+  prod_rds_identifiers = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.prod_rds.resource_tag_mapping_list :
+    split(":", resource.resource_arn)[6]
+  ])
+}
+
+# RDS - CPU Utilisation
+{
+  type   = "metric"
+  x      = 0
+  y      = 16
+  width  = 24
+  height = 8
+
+  properties = {
+    title  = "RDS CPU Utilisation - prod"
+    region = var.aws_region
+    stat   = "Average"
+    period = 300
+    view   = "timeSeries"
+
+    metrics = [
+      for db in local.prod_rds_identifiers :
+      ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", db]
+    ]
+  }
+},
+
+# RDS - Freeable Memory
+{
+  type   = "metric"
+  x      = 0
+  y      = 24
+  width  = 24
+  height = 8
+
+  properties = {
+    title  = "RDS Freeable Memory - prod"
+    region = var.aws_region
+    stat   = "Average"
+    period = 300
+    view   = "timeSeries"
+
+    metrics = [
+      for db in local.prod_rds_identifiers :
+      ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", db]
+    ]
+  }
+},
+
+# RDS - Database Connections
+{
+  type   = "metric"
+  x      = 0
+  y      = 32
+  width  = 24
+  height = 8
+
+  properties = {
+    title  = "RDS Database Connections - prod"
+    region = var.aws_region
+    stat   = "Average"
+    period = 300
+    view   = "timeSeries"
+
+    metrics = [
+      for db in local.prod_rds_identifiers :
+      ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", db]
+    ]
+  }
+}
+
+
+
+
+
 resource "aws_cloudwatch_dashboard" "application_monitoring" {
   dashboard_name = "Application-Monitoring-Dashboard"
 
