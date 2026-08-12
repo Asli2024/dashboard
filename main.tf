@@ -1,360 +1,90 @@
 
 # Find RDS instances by tag
-data "aws_resourcegroupstaggingapi_resources" "prod_rds" {
+data "aws_resourcegroupstaggingapi_resources" "rds" {
   resource_type_filters = ["rds:db"]
 
   tag_filter {
-    key    = "environment"
-    values = ["prod"]
+    key    = "Environment"
+    values = [var.enviroment]
   }
 }
 
-locals {
-  prod_rds_identifiers = sort([
-    for resource in data.aws_resourcegroupstaggingapi_resources.prod_rds.resource_tag_mapping_list :
-    split(":", resource.resource_arn)[6]
-  ])
-}
+# Find API Gateway APIs by tag
+data "aws_resourcegroupstaggingapi_resources" "apigw" {
+  resource_type_filters = ["apigateway:restapis"]
 
-# RDS - CPU Utilisation
-{
-  type   = "metric"
-  x      = 0
-  y      = 16
-  width  = 24
-  height = 8
-
-  properties = {
-    title  = "RDS CPU Utilisation - prod"
-    region = var.aws_region
-    stat   = "Average"
-    period = 300
-    view   = "timeSeries"
-
-    metrics = [
-      for db in local.prod_rds_identifiers :
-      ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", db]
-    ]
-  }
-},
-
-# RDS - Freeable Memory
-{
-  type   = "metric"
-  x      = 0
-  y      = 24
-  width  = 24
-  height = 8
-
-  properties = {
-    title  = "RDS Freeable Memory - prod"
-    region = var.aws_region
-    stat   = "Average"
-    period = 300
-    view   = "timeSeries"
-
-    metrics = [
-      for db in local.prod_rds_identifiers :
-      ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", db]
-    ]
-  }
-},
-
-# RDS - Database Connections
-{
-  type   = "metric"
-  x      = 0
-  y      = 32
-  width  = 24
-  height = 8
-
-  properties = {
-    title  = "RDS Database Connections - prod"
-    region = var.aws_region
-    stat   = "Average"
-    period = 300
-    view   = "timeSeries"
-
-    metrics = [
-      for db in local.prod_rds_identifiers :
-      ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", db]
-    ]
+  tag_filter {
+    key    = "Environment"
+    values = [var.enviroment]
   }
 }
 
+# Find Amplify apps by tag
+data "aws_resourcegroupstaggingapi_resources" "amplify" {
+  resource_type_filters = ["amplify:apps"]
 
-
-
-
-resource "aws_cloudwatch_dashboard" "application_monitoring" {
-  dashboard_name = "Application-Monitoring-Dashboard"
-
-  dashboard_body = jsonencode({
-    widgets = [
-
-      # -----------------------------------------------------
-      # Lambda - Errors
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 0
-        y      = 0
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "Lambda Function - Errors (Environment=prod)"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Sum"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/Lambda,FunctionName} MetricName=\"Errors\"', 'Sum', 300)"
-                id         = "lambda_errors"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # API Gateway - 5XX
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 6
-        y      = 0
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "Api - 5XXError"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Sum"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"5XXError\"', 'Sum', 300)"
-                id         = "api_5xx"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # RDS CPU
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 18
-        y      = 0
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "RDS - CPUUtilization"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Average"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/RDS,DBInstanceIdentifier} MetricName=\"CPUUtilization\"', 'Average', 300)"
-                id         = "rds_cpu"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # API Gateway Latency
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 6
-        y      = 6
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "Api - Latency"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Average"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"Latency\"', 'Average', 300)"
-                id         = "api_latency"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # Lambda Duration
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 12
-        y      = 6
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "Lambda - Duration"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Average"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/Lambda,FunctionName} MetricName=\"Duration\"', 'Average', 300)"
-                id         = "lambda_duration"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # RDS Freeable Memory
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 18
-        y      = 6
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "RDS - FreeableMemory"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Average"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/RDS,DBInstanceIdentifier} MetricName=\"FreeableMemory\"', 'Average', 300)"
-                id         = "rds_memory"
-              }
-            ]
-          ]
-        }
-      },
-
-      # -----------------------------------------------------
-      # RDS Database Connections
-      # -----------------------------------------------------
-      {
-        type   = "metric"
-        x      = 0
-        y      = 12
-        width  = 6
-        height = 6
-
-        properties = {
-          title  = "RDS - DatabaseConnections"
-          view   = "timeSeries"
-          region = var.aws_region
-          period = 300
-          stat   = "Average"
-
-          metrics = [
-            [
-              {
-                expression = "SEARCH('{AWS/RDS,DBInstanceIdentifier} MetricName=\"DatabaseConnections\"', 'Average', 300)"
-                id         = "rds_connections"
-              }
-            ]
-          ]
-        }
-      }
-    ]
-  })
-}
-
-
-# ---------------------------------------------------------
-# Lambda - Errors
-# Automatically discovers Lambdas tagged environment=prod
-# ---------------------------------------------------------
-
-{
-  type   = "explorer"
-  x      = 0
-  y      = 0
-  width  = 6
-  height = 6
-
-  properties = {
-    metrics = [
-      {
-        metricName = "Errors"
-        resourceType = "AWS::Lambda::Function"
-        stat = "Sum"
-      }
-    ]
-
-    labels = [
-      {
-        key   = "environment"
-        value = "prod"
-      }
-    ]
-
-    widgetOptions = {
-      legend = {
-        position = "bottom"
-      }
-
-      view    = "timeSeries"
-      stacked = false
-      rowsPerPage = 50
-    }
-
-    period = 300
+  tag_filter {
+    key    = "Environment"
+    values = [var.enviroment]
   }
 }
 
-data "aws_resourcegroupstaggingapi_resources" "prod_lambdas" {
+# Find EC2 instances by tag
+data "aws_resourcegroupstaggingapi_resources" "ec2" {
+  resource_type_filters = ["ec2:instance"]
+
+  tag_filter {
+    key    = "Environment"
+    values = [var.enviroment]
+  }
+}
+
+# Find Lambda functions by tag
+data "aws_resourcegroupstaggingapi_resources" "lambdas" {
   resource_type_filters = ["lambda:function"]
 
   tag_filter {
-    key    = "environment"
-    values = ["prod"]
+    key    = "Environment"
+    values = [var.enviroment]
   }
 }
 
 locals {
-  prod_function_names = sort([
-    for resource in data.aws_resourcegroupstaggingapi_resources.prod_lambdas.resource_tag_mapping_list :
+  rds_identifiers = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.rds.resource_tag_mapping_list :
     split(":", resource.resource_arn)[6]
+  ])
+
+  function_names = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.lambdas.resource_tag_mapping_list :
+    split(":", resource.resource_arn)[6]
+  ])
+
+  api_names = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.apigw.resource_tag_mapping_list :
+    regex("/restapis/([^/]+)", resource.resource_arn)[0]
+  ])
+
+  amplify_app_ids = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.amplify.resource_tag_mapping_list :
+    regex("/apps/([^/]+)", resource.resource_arn)[0]
+  ])
+
+  ec2_instance_ids = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.ec2.resource_tag_mapping_list :
+    split("/", resource.resource_arn)[1]
   ])
 }
 
-resource "aws_cloudwatch_dashboard" "prod_lambdas" {
-  dashboard_name = "prod-lambdas"
+resource "aws_cloudwatch_dashboard" "this" {
+  dashboard_name = "${var.enviroment}-monitoring"
 
   dashboard_body = jsonencode({
     widgets = [
+
+      # -------------------------------------------------------
+      # Lambda - Errors
+      # -------------------------------------------------------
       {
         type   = "metric"
         x      = 0
@@ -363,19 +93,22 @@ resource "aws_cloudwatch_dashboard" "prod_lambdas" {
         height = 8
 
         properties = {
-          title  = "Lambda Errors - prod"
+          title  = "Lambda Errors - ${var.enviroment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
           view   = "timeSeries"
 
           metrics = [
-            for fn in local.prod_function_names :
+            for fn in local.function_names :
             ["AWS/Lambda", "Errors", "FunctionName", fn]
           ]
         }
       },
 
+      # -------------------------------------------------------
+      # Lambda - Invocations
+      # -------------------------------------------------------
       {
         type   = "metric"
         x      = 0
@@ -384,18 +117,235 @@ resource "aws_cloudwatch_dashboard" "prod_lambdas" {
         height = 8
 
         properties = {
-          title  = "Lambda Invocations - prod"
+          title  = "Lambda Invocations - ${var.enviroment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
           view   = "timeSeries"
 
           metrics = [
-            for fn in local.prod_function_names :
+            for fn in local.function_names :
             ["AWS/Lambda", "Invocations", "FunctionName", fn]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # API Gateway - 5XX Errors
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 16
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "API Gateway 5XX Errors - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Sum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for api in local.api_names :
+            ["AWS/ApiGateway", "5XXError", "ApiName", api]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # API Gateway - Latency
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 24
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "API Gateway Latency - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for api in local.api_names :
+            ["AWS/ApiGateway", "Latency", "ApiName", api]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # RDS - CPU Utilization
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 32
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "RDS CPU Utilization - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for db in local.rds_identifiers :
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", db]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # RDS - Freeable Memory
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 40
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "RDS Freeable Memory - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for db in local.rds_identifiers :
+            ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", db]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # RDS - Database Connections
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 48
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "RDS Database Connections - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for db in local.rds_identifiers :
+            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", db]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # Amplify - 5XX Errors
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 56
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "Amplify 5XX Errors - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Sum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for app_id in local.amplify_app_ids :
+            ["AWS/AmplifyHosting", "5xxErrors", "App", app_id]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # Amplify - Latency
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 64
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "Amplify Latency - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for app_id in local.amplify_app_ids :
+            ["AWS/AmplifyHosting", "Latency", "App", app_id]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # EC2 - CPU Utilization
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 72
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "EC2 CPU Utilization - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Average"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for id in local.ec2_instance_ids :
+            ["AWS/EC2", "CPUUtilization", "InstanceId", id]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # EC2 - Status Check Failed
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 80
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "EC2 Status Check Failed - ${var.enviroment}"
+          region = var.aws_region
+          stat   = "Maximum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for id in local.ec2_instance_ids :
+            ["AWS/EC2", "StatusCheckFailed", "InstanceId", id]
           ]
         }
       }
     ]
   })
 }
+

@@ -1,5 +1,5 @@
 variable "environment" {
-  description = "The environment for which the dashboard is being created (e.g., dev, staging, prod)."
+  description = "The Environment for which the dashboard is being created (e.g., dev, staging, prod)."
   type        = string
 }
 
