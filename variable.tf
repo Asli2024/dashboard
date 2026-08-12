@@ -1,0 +1,10 @@
+variable "environment" {
+  description = "The environment for which the dashboard is being created (e.g., dev, staging, prod)."
+  type        = string
+}
+
+
+variable "aws_region" {
+  description = "The AWS region where the resources are located."
+  type        = string
+}

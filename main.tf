@@ -202,3 +202,46 @@ resource "aws_cloudwatch_dashboard" "application_monitoring" {
     ]
   })
 }
+
+
+# ---------------------------------------------------------
+# Lambda - Errors
+# Automatically discovers Lambdas tagged environment=prod
+# ---------------------------------------------------------
+
+{
+  type   = "explorer"
+  x      = 0
+  y      = 0
+  width  = 6
+  height = 6
+
+  properties = {
+    metrics = [
+      {
+        metricName = "Errors"
+        resourceType = "AWS::Lambda::Function"
+        stat = "Sum"
+      }
+    ]
+
+    labels = [
+      {
+        key   = "environment"
+        value = "prod"
+      }
+    ]
+
+    widgetOptions = {
+      legend = {
+        position = "bottom"
+      }
+
+      view    = "timeSeries"
+      stacked = false
+      rowsPerPage = 50
+    }
+
+    period = 300
+  }
+}
