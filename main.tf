@@ -5,7 +5,7 @@ data "aws_resourcegroupstaggingapi_resources" "rds" {
 
   tag_filter {
     key    = "Environment"
-    values = [var.enviroment]
+    values = [var.environment]
   }
 }
 
@@ -15,7 +15,7 @@ data "aws_resourcegroupstaggingapi_resources" "apigw" {
 
   tag_filter {
     key    = "Environment"
-    values = [var.enviroment]
+    values = [var.environment]
   }
 }
 
@@ -25,7 +25,7 @@ data "aws_resourcegroupstaggingapi_resources" "amplify" {
 
   tag_filter {
     key    = "Environment"
-    values = [var.enviroment]
+    values = [var.environment]
   }
 }
 
@@ -35,7 +35,7 @@ data "aws_resourcegroupstaggingapi_resources" "ec2" {
 
   tag_filter {
     key    = "Environment"
-    values = [var.enviroment]
+    values = [var.environment]
   }
 }
 
@@ -45,7 +45,7 @@ data "aws_resourcegroupstaggingapi_resources" "lambdas" {
 
   tag_filter {
     key    = "Environment"
-    values = [var.enviroment]
+    values = [var.environment]
   }
 }
 
@@ -62,7 +62,7 @@ locals {
 
   api_names = sort([
     for resource in data.aws_resourcegroupstaggingapi_resources.apigw.resource_tag_mapping_list :
-    regex("/restapis/([^/]+)", resource.resource_arn)[0]
+    lookup(resource.tags, "Name", regex("/restapis/([^/]+)", resource.resource_arn)[0])
   ])
 
   amplify_app_ids = sort([
@@ -77,7 +77,7 @@ locals {
 }
 
 resource "aws_cloudwatch_dashboard" "this" {
-  dashboard_name = "${var.enviroment}-monitoring"
+  dashboard_name = "${var.environment}-monitoring"
 
   dashboard_body = jsonencode({
     widgets = [
@@ -93,7 +93,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "Lambda Errors - ${var.enviroment}"
+          title  = "Lambda Errors - ${var.environment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
@@ -117,7 +117,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "Lambda Invocations - ${var.enviroment}"
+          title  = "Lambda Invocations - ${var.environment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
@@ -141,7 +141,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "API Gateway 5XX Errors - ${var.enviroment}"
+          title  = "API Gateway 5XX Errors - ${var.environment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
@@ -165,7 +165,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "API Gateway Latency - ${var.enviroment}"
+          title  = "API Gateway Latency - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -189,7 +189,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "RDS CPU Utilization - ${var.enviroment}"
+          title  = "RDS CPU Utilization - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -213,7 +213,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "RDS Freeable Memory - ${var.enviroment}"
+          title  = "RDS Freeable Memory - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -237,7 +237,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "RDS Database Connections - ${var.enviroment}"
+          title  = "RDS Database Connections - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -261,7 +261,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "Amplify 5XX Errors - ${var.enviroment}"
+          title  = "Amplify 5XX Errors - ${var.environment}"
           region = var.aws_region
           stat   = "Sum"
           period = 300
@@ -285,7 +285,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "Amplify Latency - ${var.enviroment}"
+          title  = "Amplify Latency - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -309,7 +309,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "EC2 CPU Utilization - ${var.enviroment}"
+          title  = "EC2 CPU Utilization - ${var.environment}"
           region = var.aws_region
           stat   = "Average"
           period = 300
@@ -333,7 +333,7 @@ resource "aws_cloudwatch_dashboard" "this" {
         height = 8
 
         properties = {
-          title  = "EC2 Status Check Failed - ${var.enviroment}"
+          title  = "EC2 Status Check Failed - ${var.environment}"
           region = var.aws_region
           stat   = "Maximum"
           period = 300
