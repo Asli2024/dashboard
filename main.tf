@@ -64,7 +64,7 @@ locals {
   # since the CloudWatch ApiName dimension uses the name, not the ID.
   api_names = sort([
     for resource in data.aws_resourcegroupstaggingapi_resources.apigw.resource_tag_mapping_list :
-    resource.tags["Name"]
+    lookup(resource.tags, "Name", regex("/restapis/([^/]+)", resource.resource_arn)[0])
   ])
 
   amplify_app_ids = sort([
