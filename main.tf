@@ -60,9 +60,11 @@ locals {
     split(":", resource.resource_arn)[6]
   ])
 
+  # Requires API Gateway REST APIs to be tagged with a "Name" tag matching the API name,
+  # since the CloudWatch ApiName dimension uses the name, not the ID.
   api_names = sort([
     for resource in data.aws_resourcegroupstaggingapi_resources.apigw.resource_tag_mapping_list :
-    lookup(resource.tags, "Name", regex("/restapis/([^/]+)", resource.resource_arn)[0])
+    resource.tags["Name"]
   ])
 
   amplify_app_ids = sort([
@@ -299,12 +301,36 @@ resource "aws_cloudwatch_dashboard" "this" {
       },
 
       # -------------------------------------------------------
-      # EC2 - CPU Utilization
+      # Amplify - Bytes Downloaded
       # -------------------------------------------------------
       {
         type   = "metric"
         x      = 0
         y      = 72
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "Amplify Bytes Downloaded - ${var.environment}"
+          region = var.aws_region
+          stat   = "Sum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for app_id in local.amplify_app_ids :
+            ["AWS/AmplifyHosting", "BytesDownloaded", "App", app_id]
+          ]
+        }
+      },
+
+      # -------------------------------------------------------
+      # EC2 - CPU Utilization
+      # -------------------------------------------------------
+      {
+        type   = "metric"
+        x      = 0
+        y      = 80
         width  = 24
         height = 8
 
@@ -328,7 +354,7 @@ resource "aws_cloudwatch_dashboard" "this" {
       {
         type   = "metric"
         x      = 0
-        y      = 80
+        y      = 88
         width  = 24
         height = 8
 
