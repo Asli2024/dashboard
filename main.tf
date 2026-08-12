@@ -245,3 +245,69 @@ resource "aws_cloudwatch_dashboard" "application_monitoring" {
     period = 300
   }
 }
+
+data "aws_resourcegroupstaggingapi_resources" "prod_lambdas" {
+  resource_type_filters = ["lambda:function"]
+
+  tag_filter {
+    key    = "environment"
+    values = ["prod"]
+  }
+}
+
+locals {
+  prod_function_names = sort([
+    for resource in data.aws_resourcegroupstaggingapi_resources.prod_lambdas.resource_tag_mapping_list :
+    split(":", resource.resource_arn)[6]
+  ])
+}
+
+resource "aws_cloudwatch_dashboard" "prod_lambdas" {
+  dashboard_name = "prod-lambdas"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "Lambda Errors - prod"
+          region = var.aws_region
+          stat   = "Sum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for fn in local.prod_function_names :
+            ["AWS/Lambda", "Errors", "FunctionName", fn]
+          ]
+        }
+      },
+
+      {
+        type   = "metric"
+        x      = 0
+        y      = 8
+        width  = 24
+        height = 8
+
+        properties = {
+          title  = "Lambda Invocations - prod"
+          region = var.aws_region
+          stat   = "Sum"
+          period = 300
+          view   = "timeSeries"
+
+          metrics = [
+            for fn in local.prod_function_names :
+            ["AWS/Lambda", "Invocations", "FunctionName", fn]
+          ]
+        }
+      }
+    ]
+  })
+}
