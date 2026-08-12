@@ -19,15 +19,7 @@ data "aws_resourcegroupstaggingapi_resources" "apigw" {
   }
 }
 
-# Find Amplify apps by tag
-data "aws_resourcegroupstaggingapi_resources" "amplify" {
-  resource_type_filters = ["amplify:apps"]
-
-  tag_filter {
-    key    = "Environment"
-    values = [var.environment]
-  }
-}
+# Amplify app IDs are provided directly via var.amplify_app_ids
 
 # Find EC2 instances by tag
 data "aws_resourcegroupstaggingapi_resources" "ec2" {
@@ -67,10 +59,7 @@ locals {
     lookup(resource.tags, "Name", regex("/restapis/([^/]+)", resource.resource_arn)[0])
   ])
 
-  amplify_app_ids = sort([
-    for resource in data.aws_resourcegroupstaggingapi_resources.amplify.resource_tag_mapping_list :
-    regex("/apps/([^/]+)", resource.resource_arn)[0]
-  ])
+  amplify_app_ids = var.amplify_app_ids
 
   ec2_instance_ids = sort([
     for resource in data.aws_resourcegroupstaggingapi_resources.ec2.resource_tag_mapping_list :
