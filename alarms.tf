@@ -384,3 +384,33 @@ resource "aws_cloudwatch_metric_alarm" "ec2_disk_read_ops" {
     }
   }
 }
+
+
+resource "aws_cloudwatch_metric_alarm" "prod_lambda_errors" {
+  alarm_name        = "prod-lambda-errors"
+  alarm_description = "Errors in any Lambda tagged Environment=prod"
+
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [var.sns_topic_arn]
+  ok_actions    = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "q1"
+    return_data = true
+    period      = 300
+
+    expression = <<-EOT
+      SELECT SUM(Errors)
+      FROM SCHEMA("AWS/Lambda", FunctionName)
+      WHERE tag.Environment = 'prod'
+    EOT
+  }
+}
+
+variable "sns_topic_arn" {
+  type = string
+}
