@@ -1,64 +1,81 @@
 # -------------------------------------------------------
-# Lambda Alarms — account-level aggregate metrics
+# Lambda Alarms (filtered by Environment tag)
 #
-# Lambda publishes metrics with no FunctionName dimension
-# that aggregate all functions in the account. Since this
-# module is deployed once per environment (separate AWS
-# account or assumed role), these 4 alarms effectively
-# cover all env-tagged functions without creating one
-# alarm per function.
+# Uses CloudWatch Metrics Insights SQL with
+# WHERE tag.Environment = '<env>' so only functions
+# carrying that tag are included — regardless of name.
 # -------------------------------------------------------
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   alarm_name          = "${var.environment}-lambda-errors"
-  alarm_description   = "Total Lambda errors across the ${var.environment} account are too high"
+  alarm_description   = "Total errors across all Lambda functions tagged Environment=${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
   threshold           = 10
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "errors"
+    return_data = true
+    period      = 300
+    expression  = "SELECT SUM(Errors) FROM SCHEMA(\"AWS/Lambda\", FunctionName) WHERE tag.Environment = '${var.environment}'"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
   alarm_name          = "${var.environment}-lambda-throttles"
-  alarm_description   = "Total Lambda throttles across the ${var.environment} account are too high"
+  alarm_description   = "Total throttles across all Lambda functions tagged Environment=${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
   threshold           = 20
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "throttles"
+    return_data = true
+    period      = 300
+    expression  = "SELECT SUM(Throttles) FROM SCHEMA(\"AWS/Lambda\", FunctionName) WHERE tag.Environment = '${var.environment}'"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   alarm_name          = "${var.environment}-lambda-duration"
-  alarm_description   = "p95 Lambda duration across the ${var.environment} account is too high"
+  alarm_description   = "p95 duration across all Lambda functions tagged Environment=${var.environment} is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  extended_statistic  = "p95"
   threshold           = 10000
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "duration"
+    return_data = true
+    period      = 300
+    expression  = "SELECT PERCENTILE(Duration, 95) FROM SCHEMA(\"AWS/Lambda\", FunctionName) WHERE tag.Environment = '${var.environment}'"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_concurrent_executions" {
   alarm_name          = "${var.environment}-lambda-concurrency"
-  alarm_description   = "Total concurrent Lambda executions across the ${var.environment} account are too high"
+  alarm_description   = "Total concurrency across all Lambda functions tagged Environment=${var.environment} is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
-  metric_name         = "ConcurrentExecutions"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Maximum"
   threshold           = 500
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "concurrency"
+    return_data = true
+    period      = 300
+    expression  = "SELECT MAX(ConcurrentExecutions) FROM SCHEMA(\"AWS/Lambda\", FunctionName) WHERE tag.Environment = '${var.environment}'"
+  }
 }
 
 # -------------------------------------------------------
@@ -66,106 +83,74 @@ resource "aws_cloudwatch_metric_alarm" "lambda_concurrent_executions" {
 # -------------------------------------------------------
 
 resource "aws_cloudwatch_metric_alarm" "apigw_5xx" {
-  for_each = toset(local.api_names)
-
-  alarm_name          = "${var.environment}-apigw-5xx-${each.value}"
-  alarm_description   = "API Gateway ${each.value} 5XX error rate is too high"
+  alarm_name          = "${var.environment}-apigw-5xx"
+  alarm_description   = "Total 5XX errors across all API Gateways tagged Environment=${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   threshold           = 10
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "e5xx"
-    label       = "5XX Errors"
     return_data = true
-    metric {
-      metric_name = "5XXError"
-      namespace   = "AWS/ApiGateway"
-      period      = 300
-      stat        = "Sum"
-      dimensions = {
-        ApiName = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT SUM(5XXError) FROM SCHEMA(\"AWS/ApiGateway\", ApiName) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "apigw_4xx" {
-  for_each = toset(local.api_names)
-
-  alarm_name          = "${var.environment}-apigw-4xx-${each.value}"
-  alarm_description   = "API Gateway ${each.value} 4XX error rate is too high"
+  alarm_name          = "${var.environment}-apigw-4xx"
+  alarm_description   = "Total 4XX errors across all API Gateways tagged Environment=${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   threshold           = 50
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "e4xx"
-    label       = "4XX Errors"
     return_data = true
-    metric {
-      metric_name = "4XXError"
-      namespace   = "AWS/ApiGateway"
-      period      = 300
-      stat        = "Sum"
-      dimensions = {
-        ApiName = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT SUM(4XXError) FROM SCHEMA(\"AWS/ApiGateway\", ApiName) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "apigw_latency" {
-  for_each = toset(local.api_names)
-
-  alarm_name          = "${var.environment}-apigw-latency-${each.value}"
-  alarm_description   = "API Gateway ${each.value} p99 latency is too high"
+  alarm_name          = "${var.environment}-apigw-latency"
+  alarm_description   = "p99 latency across all API Gateways tagged Environment=${var.environment} is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   threshold           = 3000
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "latency"
-    label       = "p99 Latency"
     return_data = true
-    metric {
-      metric_name = "Latency"
-      namespace   = "AWS/ApiGateway"
-      period      = 300
-      stat        = "p99"
-      dimensions = {
-        ApiName = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT PERCENTILE(Latency, 99) FROM SCHEMA(\"AWS/ApiGateway\", ApiName) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "apigw_count_low" {
-  for_each = toset(local.api_names)
-
-  alarm_name          = "${var.environment}-apigw-count-low-${each.value}"
-  alarm_description   = "API Gateway ${each.value} request count dropped unexpectedly"
+  alarm_name          = "${var.environment}-apigw-count-low"
+  alarm_description   = "Total request count across all API Gateways tagged Environment=${var.environment} dropped unexpectedly"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 3
   threshold           = 1
   treat_missing_data  = "breaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "count"
-    label       = "Request Count"
     return_data = true
-    metric {
-      metric_name = "Count"
-      namespace   = "AWS/ApiGateway"
-      period      = 300
-      stat        = "Sum"
-      dimensions = {
-        ApiName = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT SUM(Count) FROM SCHEMA(\"AWS/ApiGateway\", ApiName) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
@@ -182,6 +167,8 @@ resource "aws_cloudwatch_metric_alarm" "amplify_5xx" {
   evaluation_periods  = 2
   threshold           = 10
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "e5xx"
@@ -208,6 +195,8 @@ resource "aws_cloudwatch_metric_alarm" "amplify_4xx" {
   evaluation_periods  = 2
   threshold           = 50
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "e4xx"
@@ -234,6 +223,8 @@ resource "aws_cloudwatch_metric_alarm" "amplify_bytes_downloaded" {
   evaluation_periods  = 2
   threshold           = 5368709120 # 5 GB
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "bytes"
@@ -260,6 +251,8 @@ resource "aws_cloudwatch_metric_alarm" "amplify_requests_low" {
   evaluation_periods  = 3
   threshold           = 1
   treat_missing_data  = "breaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "requests"
@@ -282,135 +275,76 @@ resource "aws_cloudwatch_metric_alarm" "amplify_requests_low" {
 # -------------------------------------------------------
 
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu" {
-  for_each = toset(local.ec2_instance_ids)
-
-  alarm_name          = "${var.environment}-ec2-cpu-${each.value}"
-  alarm_description   = "EC2 instance ${each.value} CPU utilization is too high"
+  alarm_name          = "${var.environment}-ec2-cpu"
+  alarm_description   = "Average CPU across all EC2 instances tagged Environment=${var.environment} is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   threshold           = 80
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "cpu"
-    label       = "CPU Utilization"
     return_data = true
-    metric {
-      metric_name = "CPUUtilization"
-      namespace   = "AWS/EC2"
-      period      = 300
-      stat        = "Average"
-      dimensions = {
-        InstanceId = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT AVG(CPUUtilization) FROM SCHEMA(\"AWS/EC2\", InstanceId) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
-  for_each = toset(local.ec2_instance_ids)
-
-  alarm_name          = "${var.environment}-ec2-status-check-${each.value}"
-  alarm_description   = "EC2 instance ${each.value} status check failed"
+  alarm_name          = "${var.environment}-ec2-status-check"
+  alarm_description   = "At least one EC2 instance tagged Environment=${var.environment} has a failed status check"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   threshold           = 0
   treat_missing_data  = "breaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "status"
-    label       = "Status Check Failed"
     return_data = true
-    metric {
-      metric_name = "StatusCheckFailed"
-      namespace   = "AWS/EC2"
-      period      = 60
-      stat        = "Maximum"
-      dimensions = {
-        InstanceId = each.value
-      }
-    }
+    period      = 60
+    expression  = "SELECT MAX(StatusCheckFailed) FROM SCHEMA(\"AWS/EC2\", InstanceId) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "ec2_network_in" {
-  for_each = toset(local.ec2_instance_ids)
-
-  alarm_name          = "${var.environment}-ec2-network-in-${each.value}"
-  alarm_description   = "EC2 instance ${each.value} inbound network traffic is unusually high"
+  alarm_name          = "${var.environment}-ec2-network-in"
+  alarm_description   = "Average inbound network traffic across EC2 instances tagged Environment=${var.environment} is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   threshold           = 52428800 # 50 MB
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "net_in"
-    label       = "Network In"
     return_data = true
-    metric {
-      metric_name = "NetworkIn"
-      namespace   = "AWS/EC2"
-      period      = 300
-      stat        = "Average"
-      dimensions = {
-        InstanceId = each.value
-      }
-    }
+    period      = 300
+    expression  = "SELECT AVG(NetworkIn) FROM SCHEMA(\"AWS/EC2\", InstanceId) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "ec2_disk_read_ops" {
-  for_each = toset(local.ec2_instance_ids)
-
-  alarm_name          = "${var.environment}-ec2-disk-read-ops-${each.value}"
-  alarm_description   = "EC2 instance ${each.value} disk read I/O is saturated"
+  alarm_name          = "${var.environment}-ec2-disk-read-ops"
+  alarm_description   = "Average disk read I/O across EC2 instances tagged Environment=${var.environment} is saturated"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   threshold           = 10000
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
 
   metric_query {
     id          = "disk_reads"
-    label       = "Disk Read Ops"
-    return_data = true
-    metric {
-      metric_name = "DiskReadOps"
-      namespace   = "AWS/EC2"
-      period      = 300
-      stat        = "Average"
-      dimensions = {
-        InstanceId = each.value
-      }
-    }
-  }
-}
-
-
-resource "aws_cloudwatch_metric_alarm" "prod_lambda_errors" {
-  alarm_name        = "prod-lambda-errors"
-  alarm_description = "Errors in any Lambda tagged Environment=prod"
-
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
-
-  alarm_actions = [var.sns_topic_arn]
-  ok_actions    = [var.sns_topic_arn]
-
-  metric_query {
-    id          = "q1"
     return_data = true
     period      = 300
-
-    expression = <<-EOT
-      SELECT SUM(Errors)
-      FROM SCHEMA("AWS/Lambda", FunctionName)
-      WHERE tag.Environment = 'prod'
-    EOT
+    expression  = "SELECT AVG(DiskReadOps) FROM SCHEMA(\"AWS/EC2\", InstanceId) WHERE tag.Environment = '${var.environment}'"
   }
 }
 
-variable "sns_topic_arn" {
-  type = string
-}
+
+

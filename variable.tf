@@ -14,3 +14,13 @@ variable "amplify_app_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "sns_topic_arn" {
+  description = "ARN of the SNS topic to notify when an alarm fires or recovers."
+  type        = string
+}
+
+variable "alarm_email" {
+  description = "Email address subscribed to the SNS topic for alarm notifications."
+  type        = string
+}
