@@ -1,57 +1,43 @@
 # -------------------------------------------------------
-# Lambda Alarms (filtered by Environment tag)
+# Lambda Alarms — account-level aggregate metrics
 #
-# local.function_names is already scoped to this env via
-# the aws_resourcegroupstaggingapi_resources tag filter in
-# main.tf — the same approach used by the dashboard.
-# Per-function alarms let you pinpoint exactly which
-# function triggered. Composite alarms below provide a
-# single rollup signal per metric type.
+# Lambda publishes metrics with no FunctionName dimension
+# that aggregate all functions in the account. Since this
+# module is deployed once per environment (separate AWS
+# account or assumed role), these 4 alarms effectively
+# cover all env-tagged functions without creating one
+# alarm per function.
 # -------------------------------------------------------
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
-  for_each = toset(local.function_names)
-
-  alarm_name          = "${var.environment}-lambda-errors-${each.value}"
-  alarm_description   = "Lambda function ${each.value} error rate is too high"
+  alarm_name          = "${var.environment}-lambda-errors"
+  alarm_description   = "Total Lambda errors across the ${var.environment} account are too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "Errors"
   namespace           = "AWS/Lambda"
   period              = 300
   statistic           = "Sum"
-  threshold           = 5
+  threshold           = 10
   treat_missing_data  = "notBreaching"
-
-  dimensions = {
-    FunctionName = each.value
-  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
-  for_each = toset(local.function_names)
-
-  alarm_name          = "${var.environment}-lambda-throttles-${each.value}"
-  alarm_description   = "Lambda function ${each.value} is being throttled"
+  alarm_name          = "${var.environment}-lambda-throttles"
+  alarm_description   = "Total Lambda throttles across the ${var.environment} account are too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "Throttles"
   namespace           = "AWS/Lambda"
   period              = 300
   statistic           = "Sum"
-  threshold           = 10
+  threshold           = 20
   treat_missing_data  = "notBreaching"
-
-  dimensions = {
-    FunctionName = each.value
-  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
-  for_each = toset(local.function_names)
-
-  alarm_name          = "${var.environment}-lambda-duration-${each.value}"
-  alarm_description   = "Lambda function ${each.value} p95 duration is approaching timeout"
+  alarm_name          = "${var.environment}-lambda-duration"
+  alarm_description   = "p95 Lambda duration across the ${var.environment} account is too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   metric_name         = "Duration"
@@ -60,17 +46,11 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   extended_statistic  = "p95"
   threshold           = 10000
   treat_missing_data  = "notBreaching"
-
-  dimensions = {
-    FunctionName = each.value
-  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_concurrent_executions" {
-  for_each = toset(local.function_names)
-
-  alarm_name          = "${var.environment}-lambda-concurrency-${each.value}"
-  alarm_description   = "Lambda function ${each.value} concurrent executions are high"
+  alarm_name          = "${var.environment}-lambda-concurrency"
+  alarm_description   = "Total concurrent Lambda executions across the ${var.environment} account are too high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "ConcurrentExecutions"
@@ -79,61 +59,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_concurrent_executions" {
   statistic           = "Maximum"
   threshold           = 500
   treat_missing_data  = "notBreaching"
-
-  dimensions = {
-    FunctionName = each.value
-  }
-}
-
-# Composite rollup alarms — one signal per metric type.
-# These fire if ANY per-function alarm is in ALARM state,
-# giving you a single alert to route to SNS/PagerDuty.
-resource "aws_cloudwatch_composite_alarm" "lambda_errors_rollup" {
-  alarm_name        = "${var.environment}-lambda-errors-ANY"
-  alarm_description = "At least one ${var.environment} Lambda function has elevated errors"
-
-  alarm_rule = join(" OR ", [
-    for fn in local.function_names :
-    "ALARM(\"${var.environment}-lambda-errors-${fn}\")"
-  ])
-
-  depends_on = [aws_cloudwatch_metric_alarm.lambda_errors]
-}
-
-resource "aws_cloudwatch_composite_alarm" "lambda_throttles_rollup" {
-  alarm_name        = "${var.environment}-lambda-throttles-ANY"
-  alarm_description = "At least one ${var.environment} Lambda function is being throttled"
-
-  alarm_rule = join(" OR ", [
-    for fn in local.function_names :
-    "ALARM(\"${var.environment}-lambda-throttles-${fn}\")"
-  ])
-
-  depends_on = [aws_cloudwatch_metric_alarm.lambda_throttles]
-}
-
-resource "aws_cloudwatch_composite_alarm" "lambda_duration_rollup" {
-  alarm_name        = "${var.environment}-lambda-duration-ANY"
-  alarm_description = "At least one ${var.environment} Lambda function duration is too high"
-
-  alarm_rule = join(" OR ", [
-    for fn in local.function_names :
-    "ALARM(\"${var.environment}-lambda-duration-${fn}\")"
-  ])
-
-  depends_on = [aws_cloudwatch_metric_alarm.lambda_duration]
-}
-
-resource "aws_cloudwatch_composite_alarm" "lambda_concurrency_rollup" {
-  alarm_name        = "${var.environment}-lambda-concurrency-ANY"
-  alarm_description = "At least one ${var.environment} Lambda function has high concurrency"
-
-  alarm_rule = join(" OR ", [
-    for fn in local.function_names :
-    "ALARM(\"${var.environment}-lambda-concurrency-${fn}\")"
-  ])
-
-  depends_on = [aws_cloudwatch_metric_alarm.lambda_concurrent_executions]
 }
 
 # -------------------------------------------------------
