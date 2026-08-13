@@ -80,8 +80,8 @@ resource "aws_cloudwatch_dashboard" "this" {
         type   = "metric"
         x      = 0
         y      = 0
-        width  = 24
-        height = 8
+        width  = 6
+        height = 6
 
         properties = {
           title  = "Lambda Errors - ${var.environment}"
@@ -102,10 +102,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 8
-        width  = 24
-        height = 8
+        x      = 6
+        y      = 0
+        width  = 6
+        height = 6
 
         properties = {
           title  = "Lambda Invocations - ${var.environment}"
@@ -126,10 +126,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 16
-        width  = 24
-        height = 8
+        x      = 12
+        y      = 0
+        width  = 6
+        height = 6
 
         properties = {
           title  = "API Gateway 5XX Errors - ${var.environment}"
@@ -150,10 +150,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 24
-        width  = 24
-        height = 8
+        x      = 18
+        y      = 0
+        width  = 6
+        height = 6
 
         properties = {
           title  = "API Gateway Latency - ${var.environment}"
@@ -175,9 +175,9 @@ resource "aws_cloudwatch_dashboard" "this" {
       {
         type   = "metric"
         x      = 0
-        y      = 32
-        width  = 24
-        height = 8
+        y      = 6
+        width  = 6
+        height = 6
 
         properties = {
           title  = "RDS CPU Utilization - ${var.environment}"
@@ -198,10 +198,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 40
-        width  = 24
-        height = 8
+        x      = 6
+        y      = 6
+        width  = 6
+        height = 6
 
         properties = {
           title  = "RDS Freeable Memory - ${var.environment}"
@@ -222,10 +222,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 48
-        width  = 24
-        height = 8
+        x      = 12
+        y      = 6
+        width  = 6
+        height = 6
 
         properties = {
           title  = "RDS Database Connections - ${var.environment}"
@@ -246,10 +246,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 56
-        width  = 24
-        height = 8
+        x      = 18
+        y      = 6
+        width  = 6
+        height = 6
 
         properties = {
           title  = "Amplify 5XX Errors - ${var.environment}"
@@ -271,9 +271,9 @@ resource "aws_cloudwatch_dashboard" "this" {
       {
         type   = "metric"
         x      = 0
-        y      = 64
-        width  = 24
-        height = 8
+        y      = 12
+        width  = 6
+        height = 6
 
         properties = {
           title  = "Amplify Latency - ${var.environment}"
@@ -294,10 +294,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 72
-        width  = 24
-        height = 8
+        x      = 6
+        y      = 12
+        width  = 6
+        height = 6
 
         properties = {
           title  = "Amplify Bytes Downloaded - ${var.environment}"
@@ -318,10 +318,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 80
-        width  = 24
-        height = 8
+        x      = 12
+        y      = 12
+        width  = 6
+        height = 6
 
         properties = {
           title  = "EC2 CPU Utilization - ${var.environment}"
@@ -342,10 +342,10 @@ resource "aws_cloudwatch_dashboard" "this" {
       # -------------------------------------------------------
       {
         type   = "metric"
-        x      = 0
-        y      = 88
-        width  = 24
-        height = 8
+        x      = 18
+        y      = 12
+        width  = 6
+        height = 6
 
         properties = {
           title  = "EC2 Status Check Failed - ${var.environment}"
